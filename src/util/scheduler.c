@@ -30,11 +30,6 @@
 
 #define LOG(kind, ...) GNUNET_log_from (kind, "util-scheduler", __VA_ARGS__)
 
-#define LOG_STRERROR(kind, syscall) GNUNET_log_from_strerror (kind, \
-                                                              "util-scheduler", \
-                                                              syscall)
-
-
 #if HAVE_EXECINFO_H
 #include "execinfo.h"
 
@@ -127,189 +122,6 @@ struct GNUNET_SCHEDULER_Handle
   struct GNUNET_SIGNAL_Context *shc_pipe;
 };
 
-
-/**
- * Entry in list of pending tasks.
- */
-struct GNUNET_SCHEDULER_Task
-{
-  /**
-   * This is a linked list.
-   */
-  struct GNUNET_SCHEDULER_Task *next;
-
-  /**
-   * This is a linked list.
-   */
-  struct GNUNET_SCHEDULER_Task *prev;
-
-  /**
-   * Function to run when ready.
-   */
-  GNUNET_SCHEDULER_TaskCallback callback;
-
-  /**
-   * Closure for the @e callback.
-   */
-  void *callback_cls;
-
-  /**
-   * Information about which FDs are ready for this task (and why).
-   */
-  struct GNUNET_SCHEDULER_FdInfo *fds;
-
-  /**
-   * Storage location used for @e fds if we want to avoid
-   * a separate malloc() call in the common case that this
-   * task is only about a single FD.
-   */
-  struct GNUNET_SCHEDULER_FdInfo fdx;
-
-  /**
-   * Size of the @e fds array.
-   */
-  unsigned int fds_len;
-
-  /**
-   * Do we own the network and file handles referenced by the FdInfo
-   * structs in the fds array. This will only be GNUNET_YES if the
-   * task was created by the #GNUNET_SCHEDULER_add_select function.
-   */
-  int own_handles;
-
-  /**
-   * Absolute timeout value for the task, or
-   * #GNUNET_TIME_UNIT_FOREVER_ABS for "no timeout".
-   */
-  struct GNUNET_TIME_Absolute timeout;
-
-#if PROFILE_DELAYS
-  /**
-   * When was the task scheduled?
-   */
-  struct GNUNET_TIME_Absolute start_time;
-#endif
-
-  /**
-   * Why is the task ready?  Set after task is added to ready queue.
-   * Initially set to zero.  All reasons that have already been
-   * satisfied (i.e.  read or write ready) will be set over time.
-   */
-  enum GNUNET_SCHEDULER_Reason reason;
-
-  /**
-   * Task priority.
-   */
-  enum GNUNET_SCHEDULER_Priority priority;
-
-  /**
-   * Set if we only wait for reading from a single FD, otherwise -1.
-   */
-  int read_fd;
-
-  /**
-   * Set if we only wait for writing to a single FD, otherwise -1.
-   */
-  int write_fd;
-
-  /**
-   * Should the existence of this task in the queue be counted as
-   * reason to not shutdown the scheduler?
-   */
-  int lifeness;
-
-  /**
-   * Is this task run on shutdown?
-   */
-  int on_shutdown;
-
-  /**
-   * Is this task in the ready list?
-   */
-  int in_ready_list;
-
-#if EXECINFO
-  /**
-   * Array of strings which make up a backtrace from the point when this
-   * task was scheduled (essentially, who scheduled the task?)
-   */
-  char **backtrace_strings;
-
-  /**
-   * Size of the backtrace_strings array
-   */
-  int num_backtrace_strings;
-#endif
-
-  /**
-   * Asynchronous scope of the task that scheduled this scope,
-   */
-  struct GNUNET_AsyncScopeSave scope;
-};
-
-
-/**
- * A struct representing an event the select driver is waiting for
- */
-struct Scheduled
-{
-  struct Scheduled *prev;
-
-  struct Scheduled *next;
-
-  /**
-   * the task, the event is related to
-   */
-  struct GNUNET_SCHEDULER_Task *task;
-
-  /**
-   * information about the network socket / file descriptor where
-   * the event is expected to occur
-   */
-  struct GNUNET_SCHEDULER_FdInfo *fdi;
-
-  /**
-   * the event types (multiple event types can be ORed) the select
-   * driver is expected to wait for
-   */
-  enum GNUNET_SCHEDULER_EventType et;
-};
-
-
-/**
- * Driver context used by GNUNET_SCHEDULER_run
- */
-struct DriverContext
-{
-  /**
-   * the head of a DLL containing information about the events the
-   * select driver is waiting for
-   */
-  struct Scheduled *scheduled_head;
-
-  /**
-   * the tail of a DLL containing information about the events the
-   * select driver is waiting for
-   */
-  struct Scheduled *scheduled_tail;
-
-  /**
-   * the time when the select driver will wake up again (after
-   * calling select)
-   */
-  struct GNUNET_TIME_Absolute timeout;
-};
-
-
-/**
- * The driver used for the event loop. Will be handed over to
- * the scheduler in #GNUNET_SCHEDULER_do_work(), persisted
- * there in this variable for later use in functions like
- * #GNUNET_SCHEDULER_add_select(), #add_without_sets() and
- * #GNUNET_SCHEDULER_cancel().
- */
-static const struct GNUNET_SCHEDULER_Driver *scheduler_driver;
-
 /**
  * Head of list of tasks waiting for an event.
  */
@@ -330,6 +142,14 @@ static struct GNUNET_SCHEDULER_Task *shutdown_head;
  */
 static struct GNUNET_SCHEDULER_Task *shutdown_tail;
 
+/**
+ * The driver used for the event loop. Will be handed over to
+ * the scheduler in #GNUNET_SCHEDULER_do_work(), persisted
+ * there in this variable for later use in functions like
+ * #GNUNET_SCHEDULER_add_select(), #add_without_sets() and
+ * #GNUNET_SCHEDULER_cancel().
+ */
+static const struct GNUNET_SCHEDULER_Driver *scheduler_driver;
 /**
  * List of tasks waiting ONLY for a timeout event.
  * Sorted by timeout (earliest first).  Used so that
@@ -410,7 +230,7 @@ static int current_lifeness;
  * Function to use as a select() in the scheduler.
  * If NULL, we use GNUNET_NETWORK_socket_select().
  */
-static GNUNET_SCHEDULER_select scheduler_select;
+//static GNUNET_SCHEDULER_select scheduler_select;
 
 /**
  * Task context of the current task.
@@ -420,7 +240,7 @@ static struct GNUNET_SCHEDULER_TaskContext tc;
 /**
  * Closure for #scheduler_select.
  */
-static void *scheduler_select_cls;
+//static void *scheduler_select_cls;
 
 
 /**
@@ -430,6 +250,7 @@ static void *scheduler_select_cls;
  * @param new_select_cls closure for @a new_select
  * @return previously used select function, NULL for default
  */
+/*
 void
 GNUNET_SCHEDULER_set_select (GNUNET_SCHEDULER_select new_select,
                              void *new_select_cls)
@@ -437,7 +258,7 @@ GNUNET_SCHEDULER_set_select (GNUNET_SCHEDULER_select new_select,
   scheduler_select = new_select;
   scheduler_select_cls = new_select_cls;
 }
-
+*/
 
 /**
  * Check that the given priority is legal (and return it).
@@ -693,12 +514,6 @@ shutdown_if_no_lifeness ()
   GNUNET_SCHEDULER_shutdown ();
 }
 
-
-static int
-select_loop (struct GNUNET_SCHEDULER_Handle *sh,
-             struct DriverContext *context);
-
-
 /**
  * Initialize and run scheduler.  This function will return when all
  * tasks have completed.  On systems with signals, receiving a SIGTERM
@@ -723,15 +538,18 @@ GNUNET_SCHEDULER_run (GNUNET_SCHEDULER_TaskCallback task,
                                    .scheduled_tail = NULL,
                                    .timeout = GNUNET_TIME_absolute_get () };
 
-  driver = GNUNET_SCHEDULER_driver_select ();
+  //TODO: make this configurable
+  driver = GNUNET_SCHEDULER_driver_libevent();
+
   driver->cls = &context;
   sh = GNUNET_SCHEDULER_driver_init (driver);
   GNUNET_SCHEDULER_add_with_reason_and_priority (task,
                                                  task_cls,
                                                  GNUNET_SCHEDULER_REASON_STARTUP,
                                                  GNUNET_SCHEDULER_PRIORITY_DEFAULT);
-  select_loop (sh,
+  driver->event_loop (sh,
                &context);
+
   GNUNET_SCHEDULER_driver_done (sh);
   GNUNET_free (driver);
 }
@@ -2272,238 +2090,6 @@ GNUNET_SCHEDULER_driver_done (struct GNUNET_SCHEDULER_Handle *sh)
   shutdown_pipe_handle = NULL;
   scheduler_driver = NULL;
   GNUNET_free (sh);
-}
-
-
-static int
-select_loop (struct GNUNET_SCHEDULER_Handle *sh,
-             struct DriverContext *context)
-{
-  struct GNUNET_NETWORK_FDSet *rs;
-  struct GNUNET_NETWORK_FDSet *ws;
-  int select_result;
-
-  GNUNET_assert (NULL != context);
-  rs = GNUNET_NETWORK_fdset_create ();
-  ws = GNUNET_NETWORK_fdset_create ();
-  while ((NULL != context->scheduled_head) ||
-         (GNUNET_TIME_UNIT_FOREVER_ABS.abs_value_us !=
-          context->timeout.abs_value_us))
-  {
-    LOG (GNUNET_ERROR_TYPE_DEBUG,
-         "select timeout = %s\n",
-         GNUNET_STRINGS_absolute_time_to_string (context->timeout));
-
-    GNUNET_NETWORK_fdset_zero (rs);
-    GNUNET_NETWORK_fdset_zero (ws);
-
-    for (struct Scheduled *pos = context->scheduled_head;
-         NULL != pos;
-         pos = pos->next)
-    {
-      if (0 != (GNUNET_SCHEDULER_ET_IN & pos->et))
-      {
-        GNUNET_NETWORK_fdset_set_native (rs, pos->fdi->sock);
-      }
-      if (0 != (GNUNET_SCHEDULER_ET_OUT & pos->et))
-      {
-        GNUNET_NETWORK_fdset_set_native (ws, pos->fdi->sock);
-      }
-    }
-    struct GNUNET_TIME_Relative time_remaining =
-      GNUNET_TIME_absolute_get_remaining (context->timeout);
-    if (NULL == scheduler_select)
-    {
-      select_result = GNUNET_NETWORK_socket_select (rs,
-                                                    ws,
-                                                    NULL,
-                                                    time_remaining);
-    }
-    else
-    {
-      select_result = scheduler_select (scheduler_select_cls,
-                                        rs,
-                                        ws,
-                                        NULL,
-                                        time_remaining);
-    }
-    if (select_result == GNUNET_SYSERR)
-    {
-      if (errno == EINTR)
-        continue;
-
-      LOG_STRERROR (GNUNET_ERROR_TYPE_ERROR,
-                    "select");
-#if USE_LSOF
-      char lsof[512];
-
-      snprintf (lsof,
-                sizeof(lsof),
-                "lsof -p %d",
-                getpid ());
-      (void) close (1);
-      (void) dup2 (2, 1);
-      if (0 != system (lsof))
-        LOG_STRERROR (GNUNET_ERROR_TYPE_WARNING,
-                      "system");
-#endif
-#if DEBUG_FDS
-      for (struct Scheduled *s = context->scheduled_head;
-           NULL != s;
-           s = s->next)
-      {
-        int flags = fcntl (s->fdi->sock,
-                           F_GETFD);
-
-        if ((flags == -1) &&
-            (EBADF == errno))
-        {
-          LOG (GNUNET_ERROR_TYPE_ERROR,
-               "Got invalid file descriptor %d!\n",
-               s->fdi->sock);
-#if EXECINFO
-          dump_backtrace (s->task);
-#endif
-        }
-      }
-#endif
-      GNUNET_assert (0);
-      GNUNET_NETWORK_fdset_destroy (rs);
-      GNUNET_NETWORK_fdset_destroy (ws);
-      return GNUNET_SYSERR;
-    }
-    if (select_result > 0)
-    {
-      for (struct Scheduled *pos = context->scheduled_head;
-           NULL != pos;
-           pos = pos->next)
-      {
-        int is_ready = GNUNET_NO;
-
-        if ((0 != (GNUNET_SCHEDULER_ET_IN & pos->et)) &&
-            (GNUNET_YES ==
-             GNUNET_NETWORK_fdset_test_native (rs,
-                                               pos->fdi->sock)) )
-        {
-          pos->fdi->et |= GNUNET_SCHEDULER_ET_IN;
-          is_ready = GNUNET_YES;
-        }
-        if ((0 != (GNUNET_SCHEDULER_ET_OUT & pos->et)) &&
-            (GNUNET_YES ==
-             GNUNET_NETWORK_fdset_test_native (ws,
-                                               pos->fdi->sock)) )
-        {
-          pos->fdi->et |= GNUNET_SCHEDULER_ET_OUT;
-          is_ready = GNUNET_YES;
-        }
-        if (GNUNET_YES == is_ready)
-        {
-          GNUNET_SCHEDULER_task_ready (pos->task,
-                                       pos->fdi);
-        }
-      }
-    }
-    if (GNUNET_YES == GNUNET_SCHEDULER_do_work (sh))
-    {
-      LOG (GNUNET_ERROR_TYPE_DEBUG,
-           "scheduler has more tasks ready!\n");
-    }
-  }
-  GNUNET_NETWORK_fdset_destroy (rs);
-  GNUNET_NETWORK_fdset_destroy (ws);
-  return GNUNET_OK;
-}
-
-
-static int
-select_add (void *cls,
-            struct GNUNET_SCHEDULER_Task *task,
-            struct GNUNET_SCHEDULER_FdInfo *fdi)
-{
-  struct DriverContext *context = cls;
-
-  GNUNET_assert (NULL != context);
-  GNUNET_assert (NULL != task);
-  GNUNET_assert (NULL != fdi);
-  GNUNET_assert (0 != (GNUNET_SCHEDULER_ET_IN & fdi->et) ||
-                 0 != (GNUNET_SCHEDULER_ET_OUT & fdi->et));
-
-  if (! ((NULL != fdi->fd) ^ (NULL != fdi->fh)) || (fdi->sock < 0))
-  {
-    /* exactly one out of {fd, hf} must be != NULL and the OS handle must be valid */
-    return GNUNET_SYSERR;
-  }
-
-  struct Scheduled *scheduled = GNUNET_new (struct Scheduled);
-  scheduled->task = task;
-  scheduled->fdi = fdi;
-  scheduled->et = fdi->et;
-
-  GNUNET_CONTAINER_DLL_insert (context->scheduled_head,
-                               context->scheduled_tail,
-                               scheduled);
-  return GNUNET_OK;
-}
-
-
-static int
-select_del (void *cls,
-            struct GNUNET_SCHEDULER_Task *task)
-{
-  struct DriverContext *context;
-  struct Scheduled *pos;
-  int ret;
-
-  GNUNET_assert (NULL != cls);
-
-  context = cls;
-  ret = GNUNET_SYSERR;
-  pos = context->scheduled_head;
-  while (NULL != pos)
-  {
-    struct Scheduled *next = pos->next;
-    if (pos->task == task)
-    {
-      GNUNET_CONTAINER_DLL_remove (context->scheduled_head,
-                                   context->scheduled_tail,
-                                   pos);
-      GNUNET_free (pos);
-      ret = GNUNET_OK;
-    }
-    pos = next;
-  }
-  return ret;
-}
-
-
-static void
-select_set_wakeup (void *cls,
-                   struct GNUNET_TIME_Absolute dt)
-{
-  struct DriverContext *context = cls;
-
-  GNUNET_assert (NULL != context);
-  context->timeout = dt;
-}
-
-
-/**
- * Obtain the driver for using select() as the event loop.
- *
- * @return NULL on error
- */
-struct GNUNET_SCHEDULER_Driver *
-GNUNET_SCHEDULER_driver_select ()
-{
-  struct GNUNET_SCHEDULER_Driver *select_driver;
-
-  select_driver = GNUNET_new (struct GNUNET_SCHEDULER_Driver);
-
-  select_driver->add = &select_add;
-  select_driver->del = &select_del;
-  select_driver->set_wakeup = &select_set_wakeup;
-
-  return select_driver;
 }
 
 

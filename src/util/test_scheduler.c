@@ -177,7 +177,9 @@ check ()
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               "[Check scheduling]\n");
   ok = 1;
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,"1");
   GNUNET_SCHEDULER_run (&task1, &ok);
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,"2");
   return ok;
 }
 

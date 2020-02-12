@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: gnunet 0.9.5a\n"
 "Report-Msgid-Bugs-To: gnunet-developers@mail.gnu.org\n"
-"POT-Creation-Date: 2020-01-13 14:01+0000\n"
+"POT-Creation-Date: 2020-02-06 19:27-0500\n"
 "PO-Revision-Date: 2013-02-23 17:50+0100\n"
 "Last-Translator: Miguel Ángel Arruga Vivas <rosen644835@gmail.com>\n"
 "Language-Team: Spanish <es@li.org>\n"
@@ -2015,16 +2015,16 @@ msgstr "«%s» para «%s» falló en %s: %d con error: %s\n"
 msgid "Mysql database running\n"
 msgstr "Base de datos Mysql ejecutándose\n"
 
-#: src/datastore/plugin_datastore_postgres.c:277
-#: src/datastore/plugin_datastore_postgres.c:890
+#: src/datastore/plugin_datastore_postgres.c:278
+#: src/datastore/plugin_datastore_postgres.c:891
 msgid "Postgress exec failure"
 msgstr ""
 
-#: src/datastore/plugin_datastore_postgres.c:851
+#: src/datastore/plugin_datastore_postgres.c:852
 msgid "Failed to drop table from database.\n"
 msgstr "Se produjo un fallo al borrar una tabla de la base de datos.\n"
 
-#: src/datastore/plugin_datastore_postgres.c:949
+#: src/datastore/plugin_datastore_postgres.c:950
 msgid "Postgres database running\n"
 msgstr "Base de datos Postgres ejecutándose\n"
 
@@ -8387,58 +8387,58 @@ msgstr ""
 msgid "Need a non-empty hostname for service `%s'.\n"
 msgstr "Se necesita un nombre de máquina no vacío para el servicio «%s».\n"
 
-#: src/util/common_logging.c:259 src/util/common_logging.c:1116
+#: src/util/common_logging.c:259 src/util/common_logging.c:1112
 msgid "DEBUG"
 msgstr "DEPURACIÓN"
 
-#: src/util/common_logging.c:261 src/util/common_logging.c:1114
+#: src/util/common_logging.c:261 src/util/common_logging.c:1110
 msgid "INFO"
 msgstr "INFORMACIÓN"
 
-#: src/util/common_logging.c:263 src/util/common_logging.c:1112
+#: src/util/common_logging.c:263 src/util/common_logging.c:1108
 msgid "MESSAGE"
 msgstr "MENSAJE"
 
-#: src/util/common_logging.c:265 src/util/common_logging.c:1110
+#: src/util/common_logging.c:265 src/util/common_logging.c:1106
 msgid "WARNING"
 msgstr "PELIGRO"
 
-#: src/util/common_logging.c:267 src/util/common_logging.c:1108
+#: src/util/common_logging.c:267 src/util/common_logging.c:1104
 msgid "ERROR"
 msgstr "ERROR"
 
-#: src/util/common_logging.c:269 src/util/common_logging.c:1118
+#: src/util/common_logging.c:269 src/util/common_logging.c:1114
 msgid "NONE"
 msgstr "NINGUNO"
 
-#: src/util/common_logging.c:630 src/util/common_logging.c:669
+#: src/util/common_logging.c:626 src/util/common_logging.c:665
 #, c-format
 msgid "ERROR: Unable to parse log definition: Syntax error at `%s'.\n"
 msgstr ""
 
-#: src/util/common_logging.c:906
+#: src/util/common_logging.c:902
 #, c-format
 msgid "Message `%.*s' repeated %u times in the last %s\n"
 msgstr "Mensaje `%.*s» repetido %u veces en el último %s\n"
 
-#: src/util/common_logging.c:1119
+#: src/util/common_logging.c:1115
 msgid "INVALID"
 msgstr "NO VÁLIDO"
 
-#: src/util/common_logging.c:1400
+#: src/util/common_logging.c:1396
 msgid "unknown address"
 msgstr "dirección desconocida"
 
-#: src/util/common_logging.c:1445
+#: src/util/common_logging.c:1441
 msgid "invalid address"
 msgstr "dirección no válida"
 
-#: src/util/common_logging.c:1464
+#: src/util/common_logging.c:1460
 #, c-format
 msgid "Configuration fails to specify option `%s' in section `%s'!\n"
 msgstr "¡La configuración no especifica la opción «%s» en la sección «%s»!\n"
 
-#: src/util/common_logging.c:1487
+#: src/util/common_logging.c:1483
 #, c-format
 msgid ""
 "Configuration specifies invalid value for option `%s' in section `%s': %s\n"
@@ -8446,22 +8446,22 @@ msgstr ""
 "La configuración especifica un valor no válido en la opción «%s» de la "
 "sección «%s»: %s\n"
 
-#: src/util/configuration.c:325
+#: src/util/configuration.c:402
 #, c-format
 msgid "Syntax error while deserializing in line %u\n"
 msgstr "Error de sintaxis en la línea %u mientras se deserializaba\n"
 
-#: src/util/configuration.c:383
+#: src/util/configuration.c:460
 #, fuzzy, c-format
 msgid "Error while reading file `%s'\n"
 msgstr "Error decodificando clave %u\n"
 
-#: src/util/configuration.c:986
+#: src/util/configuration.c:1063
 #, fuzzy
 msgid "Not a valid relative time specification"
 msgstr "Tiempo de expiración no válido para la operación «%s»\n"
 
-#: src/util/configuration.c:1077
+#: src/util/configuration.c:1154
 #, c-format
 msgid ""
 "Configuration value '%s' for '%s' in section '%s' is not in set of legal "
@@ -8470,17 +8470,17 @@ msgstr ""
 "El valor de configuración «%s» para «%s» de la sección «%s» no está dentro "
 "de las opciones legales\n"
 
-#: src/util/configuration.c:1192
+#: src/util/configuration.c:1269
 #, c-format
 msgid "Recursive expansion suspected, aborting $-expansion for term `%s'\n"
 msgstr ""
 
-#: src/util/configuration.c:1224
+#: src/util/configuration.c:1301
 #, fuzzy, c-format
 msgid "Missing closing `%s' in option `%s'\n"
 msgstr "Falta la opción «%s» para la operación «%s»\n"
 
-#: src/util/configuration.c:1290
+#: src/util/configuration.c:1367
 #, c-format
 msgid ""
 "Failed to expand `%s' in `%s' as it is neither found in [PATHS] nor defined "
@@ -8551,7 +8551,7 @@ msgstr "libgcrypt no tiene la versión esperada (se necesita la versión %s).\n"
 msgid "RSA signing failed at %s:%d: %s\n"
 msgstr "El firmado ECC falló en %s:%d: %s\n"
 
-#: src/util/crypto_rsa.c:1313
+#: src/util/crypto_rsa.c:1314
 #, c-format
 msgid "RSA signature verification failed at %s:%d: %s\n"
 msgstr "La verificación de la firma RSA fallo en %s:%d: %s\n"

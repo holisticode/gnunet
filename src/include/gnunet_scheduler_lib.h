@@ -254,6 +254,30 @@ struct GNUNET_SCHEDULER_Handle;
 int
 GNUNET_SCHEDULER_do_work (struct GNUNET_SCHEDULER_Handle *sh);
 
+/**
+ * Driver context used by GNUNET_SCHEDULER_run
+ */
+struct DriverContext
+{
+  /**
+   * the head of a DLL containing information about the events the
+   * select driver is waiting for
+   */
+  struct Scheduled *scheduled_head;
+
+  /**
+   * the tail of a DLL containing information about the events the
+   * select driver is waiting for
+   */
+  struct Scheduled *scheduled_tail;
+
+  /**
+   * the time when the select driver will wake up again (after
+   * calling select)
+   */
+  struct GNUNET_TIME_Absolute timeout;
+};
+
 
 /**
  * API an external event loop has to implement for
@@ -307,6 +331,17 @@ struct GNUNET_SCHEDULER_Driver
   void
   (*set_wakeup)(void *cls,
                 struct GNUNET_TIME_Absolute dt);
+
+
+  /*
+   * Run the actual event loop
+   *
+   * @param sh scheduler handle
+   * @param context driver context
+   */
+  int
+  (*event_loop) (struct GNUNET_SCHEDULER_Handle *sh,
+               struct DriverContext *context);
 };
 
 
@@ -380,6 +415,14 @@ GNUNET_SCHEDULER_driver_done (struct GNUNET_SCHEDULER_Handle *sh);
 struct GNUNET_SCHEDULER_Driver *
 GNUNET_SCHEDULER_driver_select (void);
 
+
+/**
+ * Obtain the driver for using libevent as the event loop.
+ *
+ * @return NULL on error
+ */
+struct GNUNET_SCHEDULER_Driver *
+GNUNET_SCHEDULER_driver_libevent (void);
 
 /**
  * Signature of the select function used by the scheduler.
@@ -900,11 +943,12 @@ GNUNET_SCHEDULER_add_select (enum GNUNET_SCHEDULER_Priority prio,
  * @param new_select new select function to use (NULL to reset to default)
  * @param new_select_cls closure for @a new_select
  */
+/*
 void
 GNUNET_SCHEDULER_set_select (GNUNET_SCHEDULER_select new_select,
                              void *new_select_cls);
 
-
+*/
 /**
  * Change the async scope for the currently executing task and (transitively)
  * for all tasks scheduled by the current task after calling this function.
@@ -919,6 +963,154 @@ GNUNET_SCHEDULER_set_select (GNUNET_SCHEDULER_select new_select,
  */
 void
 GNUNET_SCHEDULER_begin_async_scope (struct GNUNET_AsyncScopeId *aid);
+
+
+/**
+ * Entry in list of pending tasks.
+ */
+struct GNUNET_SCHEDULER_Task
+{
+  /**
+   * This is a linked list.
+   */
+  struct GNUNET_SCHEDULER_Task *next;
+
+  /**
+   * This is a linked list.
+   */
+  struct GNUNET_SCHEDULER_Task *prev;
+
+  /**
+   * Function to run when ready.
+   */
+  GNUNET_SCHEDULER_TaskCallback callback;
+
+  /**
+   * Closure for the @e callback.
+   */
+  void *callback_cls;
+
+  /**
+   * Information about which FDs are ready for this task (and why).
+   */
+  struct GNUNET_SCHEDULER_FdInfo *fds;
+
+  /**
+   * Storage location used for @e fds if we want to avoid
+   * a separate malloc() call in the common case that this
+   * task is only about a single FD.
+   */
+  struct GNUNET_SCHEDULER_FdInfo fdx;
+
+  /**
+   * Size of the @e fds array.
+   */
+  unsigned int fds_len;
+
+  /**
+   * Do we own the network and file handles referenced by the FdInfo
+   * structs in the fds array. This will only be GNUNET_YES if the
+   * task was created by the #GNUNET_SCHEDULER_add_select function.
+   */
+  int own_handles;
+
+  /**
+   * Absolute timeout value for the task, or
+   * #GNUNET_TIME_UNIT_FOREVER_ABS for "no timeout".
+   */
+  struct GNUNET_TIME_Absolute timeout;
+
+#if PROFILE_DELAYS
+  /**
+   * When was the task scheduled?
+   */
+  struct GNUNET_TIME_Absolute start_time;
+#endif
+
+  /**
+   * Why is the task ready?  Set after task is added to ready queue.
+   * Initially set to zero.  All reasons that have already been
+   * satisfied (i.e.  read or write ready) will be set over time.
+   */
+  enum GNUNET_SCHEDULER_Reason reason;
+
+  /**
+   * Task priority.
+   */
+  enum GNUNET_SCHEDULER_Priority priority;
+
+  /**
+   * Set if we only wait for reading from a single FD, otherwise -1.
+   */
+  int read_fd;
+
+  /**
+   * Set if we only wait for writing to a single FD, otherwise -1.
+   */
+  int write_fd;
+
+  /**
+   * Should the existence of this task in the queue be counted as
+   * reason to not shutdown the scheduler?
+   */
+  int lifeness;
+
+  /**
+   * Is this task run on shutdown?
+   */
+  int on_shutdown;
+
+  /**
+   * Is this task in the ready list?
+   */
+  int in_ready_list;
+
+#if EXECINFO
+  /**
+   * Array of strings which make up a backtrace from the point when this
+   * task was scheduled (essentially, who scheduled the task?)
+   */
+  char **backtrace_strings;
+
+  /**
+   * Size of the backtrace_strings array
+   */
+  int num_backtrace_strings;
+#endif
+
+  /**
+   * Asynchronous scope of the task that scheduled this scope,
+   */
+  struct GNUNET_AsyncScopeSave scope;
+};
+
+
+/**
+ * A struct representing an event the select driver is waiting for
+ */
+struct Scheduled
+{
+  struct Scheduled *prev;
+
+  struct Scheduled *next;
+
+  /**
+   * the task, the event is related to
+   */
+  struct GNUNET_SCHEDULER_Task *task;
+
+  /**
+   * information about the network socket / file descriptor where
+   * the event is expected to occur
+   */
+  struct GNUNET_SCHEDULER_FdInfo *fdi;
+
+  /**
+   * the event types (multiple event types can be ORed) the select
+   * driver is expected to wait for
+   */
+  enum GNUNET_SCHEDULER_EventType et;
+};
 
 
 #if 0                           /* keep Emacsens' auto-indent happy */

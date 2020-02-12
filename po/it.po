@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: gnunet 0.10.1\n"
 "Report-Msgid-Bugs-To: gnunet-developers@mail.gnu.org\n"
-"POT-Creation-Date: 2020-01-13 14:01+0000\n"
+"POT-Creation-Date: 2020-02-06 19:27-0500\n"
 "PO-Revision-Date: 2019-10-16 11:00+0200\n"
 "Last-Translator: Sebastiano Pistore <sebastianopistore.info@protonmail.ch>\n"
 "Language-Team: Italian <tp@lists.linux.it>\n"
@@ -1887,16 +1887,16 @@ msgstr ""
 msgid "Mysql database running\n"
 msgstr ""
 
-#: src/datastore/plugin_datastore_postgres.c:277
-#: src/datastore/plugin_datastore_postgres.c:890
+#: src/datastore/plugin_datastore_postgres.c:278
+#: src/datastore/plugin_datastore_postgres.c:891
 msgid "Postgress exec failure"
 msgstr ""
 
-#: src/datastore/plugin_datastore_postgres.c:851
+#: src/datastore/plugin_datastore_postgres.c:852
 msgid "Failed to drop table from database.\n"
 msgstr ""
 
-#: src/datastore/plugin_datastore_postgres.c:949
+#: src/datastore/plugin_datastore_postgres.c:950
 msgid "Postgres database running\n"
 msgstr ""
 
@@ -7821,95 +7821,95 @@ msgstr ""
 msgid "Need a non-empty hostname for service `%s'.\n"
 msgstr ""
 
-#: src/util/common_logging.c:259 src/util/common_logging.c:1116
+#: src/util/common_logging.c:259 src/util/common_logging.c:1112
 msgid "DEBUG"
 msgstr "DEBUG"
 
-#: src/util/common_logging.c:261 src/util/common_logging.c:1114
+#: src/util/common_logging.c:261 src/util/common_logging.c:1110
 msgid "INFO"
 msgstr "INFO"
 
-#: src/util/common_logging.c:263 src/util/common_logging.c:1112
+#: src/util/common_logging.c:263 src/util/common_logging.c:1108
 msgid "MESSAGE"
 msgstr ""
 
-#: src/util/common_logging.c:265 src/util/common_logging.c:1110
+#: src/util/common_logging.c:265 src/util/common_logging.c:1106
 msgid "WARNING"
 msgstr "ATTENZIONE"
 
-#: src/util/common_logging.c:267 src/util/common_logging.c:1108
+#: src/util/common_logging.c:267 src/util/common_logging.c:1104
 msgid "ERROR"
 msgstr "ERRORE"
 
-#: src/util/common_logging.c:269 src/util/common_logging.c:1118
+#: src/util/common_logging.c:269 src/util/common_logging.c:1114
 msgid "NONE"
 msgstr "NESSUNA"
 
-#: src/util/common_logging.c:630 src/util/common_logging.c:669
+#: src/util/common_logging.c:626 src/util/common_logging.c:665
 #, c-format
 msgid "ERROR: Unable to parse log definition: Syntax error at `%s'.\n"
 msgstr ""
 
-#: src/util/common_logging.c:906
+#: src/util/common_logging.c:902
 #, c-format
 msgid "Message `%.*s' repeated %u times in the last %s\n"
 msgstr ""
 
-#: src/util/common_logging.c:1119
+#: src/util/common_logging.c:1115
 msgid "INVALID"
 msgstr "NON VALIDO"
 
-#: src/util/common_logging.c:1400
+#: src/util/common_logging.c:1396
 msgid "unknown address"
 msgstr "indirizzo sconosciuto"
 
-#: src/util/common_logging.c:1445
+#: src/util/common_logging.c:1441
 msgid "invalid address"
 msgstr "indirizzo non valido"
 
-#: src/util/common_logging.c:1464
+#: src/util/common_logging.c:1460
 #, c-format
 msgid "Configuration fails to specify option `%s' in section `%s'!\n"
 msgstr ""
 
-#: src/util/common_logging.c:1487
+#: src/util/common_logging.c:1483
 #, c-format
 msgid ""
 "Configuration specifies invalid value for option `%s' in section `%s': %s\n"
 msgstr ""
 
-#: src/util/configuration.c:325
+#: src/util/configuration.c:402
 #, c-format
 msgid "Syntax error while deserializing in line %u\n"
 msgstr ""
 
-#: src/util/configuration.c:383
+#: src/util/configuration.c:460
 #, c-format
 msgid "Error while reading file `%s'\n"
 msgstr "Errore di lettura del file `%s'\n"
 
-#: src/util/configuration.c:986
+#: src/util/configuration.c:1063
 msgid "Not a valid relative time specification"
 msgstr ""
 
-#: src/util/configuration.c:1077
+#: src/util/configuration.c:1154
 #, c-format
 msgid ""
 "Configuration value '%s' for '%s' in section '%s' is not in set of legal "
 "choices\n"
 msgstr ""
 
-#: src/util/configuration.c:1192
+#: src/util/configuration.c:1269
 #, c-format
 msgid "Recursive expansion suspected, aborting $-expansion for term `%s'\n"
 msgstr ""
 
-#: src/util/configuration.c:1224
+#: src/util/configuration.c:1301
 #, c-format
 msgid "Missing closing `%s' in option `%s'\n"
 msgstr ""
 
-#: src/util/configuration.c:1290
+#: src/util/configuration.c:1367
 #, c-format
 msgid ""
 "Failed to expand `%s' in `%s' as it is neither found in [PATHS] nor defined "
@@ -7971,7 +7971,7 @@ msgstr ""
 msgid "RSA signing failed at %s:%d: %s\n"
 msgstr ""
 
-#: src/util/crypto_rsa.c:1313
+#: src/util/crypto_rsa.c:1314
 #, c-format
 msgid "RSA signature verification failed at %s:%d: %s\n"
 msgstr ""
