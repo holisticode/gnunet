@@ -132,15 +132,32 @@ static void select_post_do_work(struct GNUNET_SCHEDULER_Handle *sh,
   }
 }
 
+/**
+ * Called at the end of GNUNET_SCHEDULER_driver_init().
+ * It actually identifies which is the shutdown pipe, which needs to run when 
+ * all events have been handled and the loop will shut down.
+ * 
+ * @param sh the handle to the internal scheduler state 
+ * @param fh filehandle to activate 
+ *
+*/
 static void select_activate_loop (struct GNUNET_SCHEDULER_Handle *sh, 
     const struct GNUNET_DISK_FileHandle *fh) {
 
   sh->rs = GNUNET_NETWORK_fdset_create ();
   sh->ws = GNUNET_NETWORK_fdset_create ();
   GNUNET_NETWORK_fdset_handle_set (sh->rs, fh);
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "activate loop, FDSET on handle: %d\n", fh->fd);
 }
 
+/**
+ * Called during GNUNET_SCHEDULER_run() after GNUNET_SCHEDULER_driver_init (driver).
+ *
+ * Runs the event loop with select. 
+ * 
+ * @param sh the handle to the internal scheduler state 
+ * @param context the context of the driver 
+ *
+*/
 static int
 select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
              struct DriverContext *context)
@@ -153,6 +170,9 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
   int select_result;
 
   GNUNET_assert (NULL != context);
+
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"running select_event_loop\n");
+
   rs = GNUNET_NETWORK_fdset_create ();
   ws = GNUNET_NETWORK_fdset_create ();
   while ((NULL != context->scheduled_head) ||
@@ -172,41 +192,22 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
     {
       if (0 != (GNUNET_SCHEDULER_ET_IN & pos->et))
       {
-  LOG(GNUNET_ERROR_TYPE_DEBUG,"handling scheduled, set read: %p\n",pos->task);
         GNUNET_NETWORK_fdset_set_native (rs, pos->fdi->sock);
       }
       if (0 != (GNUNET_SCHEDULER_ET_OUT & pos->et))
       {
-  LOG(GNUNET_ERROR_TYPE_DEBUG,"handling scheduled, set write: %p\n",pos->task);
         GNUNET_NETWORK_fdset_set_native (ws, pos->fdi->sock);
       }
     }
     struct GNUNET_TIME_Relative time_remaining =
       GNUNET_TIME_absolute_get_remaining (context->timeout);
-    /*
-    if (NULL == scheduler_select)
-    {
-    */
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "before select...\n");
-      select_result = GNUNET_NETWORK_socket_select (rs,
-                                                    ws,
-                                                    NULL,
-                                                    time_remaining);
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "after select...\n");
-      /*
-    }
-    else
-    {
-      select_result = scheduler_select (scheduler_select_cls,
-                                        rs,
-                                        ws,
-                                        NULL,
-                                        time_remaining);
-    }
-    */
+
+    select_result = GNUNET_NETWORK_socket_select (rs,
+                                                  ws,
+                                                  NULL,
+                                                  time_remaining);
     if (select_result == GNUNET_SYSERR)
     {
-  LOG(GNUNET_ERROR_TYPE_DEBUG,"======================SYSERR=======================\n");
       if (errno == EINTR)
         continue;
 
@@ -250,9 +251,9 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
       GNUNET_NETWORK_fdset_destroy (ws);
       return GNUNET_SYSERR;
     }
+
     if (select_result > 0)
     {
-  LOG(GNUNET_ERROR_TYPE_DEBUG,"select_result > 0\n");
       for (struct Scheduled *pos = context->scheduled_head;
            NULL != pos;
            pos = pos->next)
@@ -266,7 +267,6 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
         {
           pos->fdi->et |= GNUNET_SCHEDULER_ET_IN;
           is_ready = GNUNET_YES;
-  LOG(GNUNET_ERROR_TYPE_DEBUG,"handling select result scheduled, is_ready: %p\n",pos->task);
         }
         if ((0 != (GNUNET_SCHEDULER_ET_OUT & pos->et)) &&
             (GNUNET_YES ==
@@ -275,7 +275,6 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
         {
           pos->fdi->et |= GNUNET_SCHEDULER_ET_OUT;
           is_ready = GNUNET_YES;
-  LOG(GNUNET_ERROR_TYPE_DEBUG,"handling select result scheduled, is_ready: %p\n",pos->task);
         }
         if (GNUNET_YES == is_ready)
         {
@@ -283,8 +282,8 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
                                        pos->fdi);
         }
       }
-  LOG(GNUNET_ERROR_TYPE_DEBUG,"iter for context->scheduled done\n");
     }
+
     if (GNUNET_YES == GNUNET_SCHEDULER_do_work (sh))
     {
       LOG (GNUNET_ERROR_TYPE_DEBUG,
@@ -295,6 +294,7 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
   GNUNET_NETWORK_fdset_destroy (ws);
   return GNUNET_OK;
 }
+
 /**
  * Obtain the driver for using select() as the event loop.
  *
@@ -317,4 +317,4 @@ GNUNET_SCHEDULER_driver_select ()
   return select_driver;
 }
 
-
+/* end of scheduler_select.c */

@@ -411,9 +411,6 @@ struct GNUNET_SCHEDULER_Driver
       struct GNUNET_SCHEDULER_Task *active_task);
 };
 
-void
-destroy_task (struct GNUNET_SCHEDULER_Task *t);
-
 /**
  * Signature of the main function of a task.
  *

@@ -155,17 +155,13 @@ task1 (void *cls)
 
   GNUNET_assert (1 == *ok);
   (*ok) = 2;
-  GNUNET_log(GNUNET_ERROR_TYPE_DEBUG, "task1 - 1\n");
   GNUNET_SCHEDULER_add_now (&task3, cls);
-  GNUNET_log(GNUNET_ERROR_TYPE_DEBUG, "task1 - 2\n");
   GNUNET_SCHEDULER_add_with_priority (GNUNET_SCHEDULER_PRIORITY_UI,
                                       &task2,
                                       cls);
-  GNUNET_log(GNUNET_ERROR_TYPE_DEBUG, "task1 - 3\n");
   GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_SECONDS,
                                 &task4,
                                 cls);
-  GNUNET_log(GNUNET_ERROR_TYPE_DEBUG, "task1 - 4\n");
 }
 
 
@@ -181,9 +177,7 @@ check ()
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               "[Check scheduling]\n");
   ok = 1;
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,"1\n");
   GNUNET_SCHEDULER_run (&task1, &ok);
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,"2\n");
   return ok;
 }
 

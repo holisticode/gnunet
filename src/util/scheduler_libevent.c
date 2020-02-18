@@ -37,17 +37,6 @@
                                                               syscall)
 static struct event_base *base;
 static int activate_fd;
-static struct Scheduled *parent_task;
-
-static bool activated = false;
-
-struct callback_context
-{
-  struct GNUNET_SCHEDULER_Handle *handle;
-  struct Scheduled *task;
-  struct event *evt;
-  struct DriverContext *driver_context;
-};
 
 static int
 libevent_add (void *cls,
@@ -131,29 +120,43 @@ libevent_set_wakeup (void *cls,
       
 }
 
+/*
+ * The event callback function  executed when during event loop execution
+ * an event became active
+ *
+ * @param fd file descriptor of the event which became active 
+ * @param events bitmasked description of the event type which fired 
+ * @param param custom parameter for the callback (the task in our case) 
+ */ 
 static void event_callback(evutil_socket_t fd, short events, void *param) 
 {
 
   LOG (GNUNET_ERROR_TYPE_DEBUG,
       "libevent event callback running\n");
 
-  struct callback_context *ctx = (struct callback_context*) param;
+  struct Scheduled *task = (struct Scheduled*) param;
 
   if (events == EV_TIMEOUT) {
     LOG (GNUNET_ERROR_TYPE_DEBUG, "libevent timeout only event, event not triggered -> don't do anything\n");
     return;
   }
 
-  GNUNET_assert (NULL != ctx);
-  GNUNET_assert (NULL != ctx->task);
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "libevent callback set task ready: %p\n", ctx->task);
+  GNUNET_assert (NULL != task);
+  GNUNET_assert (NULL != task->task);
+  GNUNET_assert (NULL != task->fdi);
 
-  GNUNET_SCHEDULER_task_ready (ctx->task->task, ctx->task->fdi);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "libevent callback set task ready: %p\n", task);
+
+  GNUNET_SCHEDULER_task_ready (task->task, task->fdi);
 }
 
 
+#if DEBUG
 /**
 * For debugging purposes, logging internal libevent callback functions 
+* 
+* @param sev severity of log event 
+* @param msg log event message 
 */
 static void log_callback(int sev, const char* msg) 
 {
@@ -175,12 +178,15 @@ static void log_callback(int sev, const char* msg)
 }
 
 /**
-* For debugging purposes, logging fatal callback 
-*/
+ * For debugging purposes, logging fatal callback 
+ * 
+ * @param err reason for fatal error 
+ */
 static void fatal_callback(int err) 
 {
   LOG(GNUNET_ERROR_TYPE_ERROR, "libevent fatal_callback with error: %v\n", err);
 }
+#endif
 
 static void libevent_post_do_work(struct GNUNET_SCHEDULER_Handle *sh, 
     struct GNUNET_SCHEDULER_Task *active_task) 
@@ -208,6 +214,9 @@ static void libevent_post_do_work(struct GNUNET_SCHEDULER_Handle *sh,
  * Called at the end of GNUNET_SCHEDULER_driver_init().
  * It actually identifies which is the shutdown pipe, which needs to run when 
  * all events have been handled and the loop will shut down.
+ * 
+ * @param sh the handle to the internal scheduler state 
+ * @param fh filehandle to activate 
  *
 */
 static void libevent_activate_loop (struct GNUNET_SCHEDULER_Handle *sh, 
@@ -223,6 +232,50 @@ static void libevent_activate_loop (struct GNUNET_SCHEDULER_Handle *sh,
 }
 
 /**
+ * Based on the given time remaining (through the context),
+ * evaluate with what timeout value an event will be added.
+ *
+ * If the timeout is NULL, then the loop will wait forever 
+ * until the event becomes active.
+ *
+ * Otherwise it will timeout the event with the given timeout value.
+ * 
+ * @param timeout pointer to timeval struct to be passed to event_add() 
+ * @param context the driver state, which contains the remaining timeout
+ *
+*/
+void eval_event_timeout(struct timeval **timeout, struct DriverContext *context)
+{
+    struct GNUNET_TIME_Relative time_remaining =
+        GNUNET_TIME_absolute_get_remaining (context->timeout);
+
+    /* if the event should be waited for forever, pass NULL */
+    if (time_remaining.rel_value_us == GNUNET_TIME_UNIT_FOREVER_REL.rel_value_us) 
+    {
+      *timeout = NULL;
+      return;
+    }
+
+    /* the event_add() function takes a #timeval argument, so we need to
+     * construct the correct value for it
+     */ 
+    if (time_remaining.rel_value_us / GNUNET_TIME_UNIT_SECONDS.rel_value_us > 
+        (unsigned long long) LONG_MAX)
+    {
+      (*timeout)->tv_sec = LONG_MAX;
+      (*timeout)->tv_usec = 999999L;
+    } 
+    else 
+    {
+      (*timeout)->tv_sec = (long) (time_remaining.rel_value_us
+                        / GNUNET_TIME_UNIT_SECONDS.rel_value_us);
+      (*timeout)->tv_usec =
+        (time_remaining.rel_value_us
+          - ((*timeout)->tv_sec * GNUNET_TIME_UNIT_SECONDS.rel_value_us));
+    }
+}
+
+/**
  * Called during GNUNET_SCHEDULER_run() after GNUNET_SCHEDULER_driver_init (driver).
  *
  * Runs the event loop with libevent. 
@@ -235,6 +288,9 @@ static void libevent_activate_loop (struct GNUNET_SCHEDULER_Handle *sh,
  *
  * Then the event loop is restarted for subsequent scheduled events.
  * Events are activated via the #event_callback() function.
+ * 
+ * @param sh the handle to the internal scheduler state 
+ * @param context the context of the driver 
  *
 */
 static int
@@ -244,7 +300,7 @@ libevent_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
   int dispatch_result;
   struct event *evt;
   struct timeval *timeout;
-  timeout = GNUNET_new (struct timeval);
+
 
   GNUNET_assert (NULL != context);
 
@@ -258,53 +314,43 @@ libevent_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
          "libevent timeout = %s\n",
          GNUNET_STRINGS_absolute_time_to_string (context->timeout));
 
+    /* get the correct value for the event_add() argument */
+    timeout = GNUNET_new (struct timeval);
+    eval_event_timeout(&timeout, context);
+        
+
     for (struct Scheduled *pos = context->scheduled_head;
          NULL != pos;
          pos = pos->next)
     {
-      struct GNUNET_TIME_Relative time_remaining =
-        GNUNET_TIME_absolute_get_remaining (context->timeout);
+        /* what event type should the event wait for? */
+        if ( (pos->et & GNUNET_SCHEDULER_ET_IN)  != 0) {
+          evt = event_new(base, pos->fdi->sock, EV_READ, event_callback, pos);
+        } else if ( (pos->et & GNUNET_SCHEDULER_ET_OUT) != 0) {
+          evt = event_new(base, pos->fdi->sock, EV_WRITE, event_callback, pos);
+          /* TODO: is this actually needed and how? 
+           * EV_SIGNAL with either EV_READ | EV_WRITE are incompatible */
+        } else {
+          evt = event_new(base, pos->fdi->sock, EV_SIGNAL|EV_PERSIST, event_callback, pos);
+        }
 
-    if (time_remaining.rel_value_us / GNUNET_TIME_UNIT_SECONDS.rel_value_us > (unsigned long long) LONG_MAX)
-    {
-      timeout->tv_sec = LONG_MAX;
-      timeout->tv_usec = 999999L;
-    } else 
-    {
-    timeout->tv_sec = (long) (time_remaining.rel_value_us
-                        / GNUNET_TIME_UNIT_SECONDS.rel_value_us);
-    timeout->tv_usec =
-      (time_remaining.rel_value_us
-       - (timeout->tv_sec * GNUNET_TIME_UNIT_SECONDS.rel_value_us));
+        /* add the event */
+        int addResult = event_add(evt, timeout);
+        if (0 != addResult) {
+          LOG (GNUNET_ERROR_TYPE_ERROR,
+            "error adding event");
+          return GNUNET_SYSERR; 
+        }
+
+        /* this is special: we need this to activate the shutdown task */
+        if (pos->fdi->sock == activate_fd) {
+          event_active(evt, EV_READ,0);
+        }
     }
 
-        struct callback_context *ctx = GNUNET_new(struct callback_context);
-        ctx->handle = sh;
-        ctx->task = pos;
-        ctx->driver_context = context;
-      if ( (pos->et & GNUNET_SCHEDULER_ET_IN)  != 0) {
-        evt = event_new(base, pos->fdi->sock, EV_READ, event_callback, ctx);
-      } else if ( (pos->et & GNUNET_SCHEDULER_ET_OUT) != 0) {
-        evt = event_new(base, pos->fdi->sock, EV_WRITE, event_callback, ctx);
-        /* TODO: is this actually needed and how? */
-      } else {
-        evt = event_new(base, pos->fdi->sock, EV_SIGNAL|EV_PERSIST, event_callback, ctx);
-      }
-      ctx->evt = evt;
-      int addResult = event_add(evt, (time_remaining.rel_value_us == GNUNET_TIME_UNIT_FOREVER_REL.rel_value_us) ? NULL : timeout);
-      if (0 != addResult) {
-        LOG (GNUNET_ERROR_TYPE_ERROR,
-          "error adding event");
-        return GNUNET_SYSERR; 
-      }
-
-      if (pos->fdi->sock == activate_fd) {
-        event_active(evt, EV_READ,0);
-      }
-    }
-
+    /* now run the loop and wait for events to be fired.
+     * the loop is configured to run once until all the current events become active */
     LOG(GNUNET_ERROR_TYPE_DEBUG,"libevent dispatching events (starting loop).\n");
-
     dispatch_result = event_base_loop(base, EVLOOP_ONCE);
     if (dispatch_result < 0) {
       LOG (GNUNET_ERROR_TYPE_ERROR,
@@ -316,6 +362,9 @@ libevent_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
            "event dispatch no events pending or active");
     }
 
+    /* after all events have fired, run the scheduler to determine
+     * which tasks are next
+     */
     if (GNUNET_YES == GNUNET_SCHEDULER_do_work (sh))
     {
       LOG (GNUNET_ERROR_TYPE_DEBUG,
@@ -323,6 +372,7 @@ libevent_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
     }
   }
 
+  /* we are done */
   LOG(GNUNET_ERROR_TYPE_DEBUG,"libevent_event_loop done.");
   return GNUNET_OK;
 }
@@ -365,3 +415,5 @@ GNUNET_SCHEDULER_driver_libevent ()
 
   return libevent_driver;
 }
+
+/* end of scheduler_libevent.c */
