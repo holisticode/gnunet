@@ -58,6 +58,8 @@ select_add (void *cls,
   scheduled->fdi = fdi;
   scheduled->et = fdi->et;
 
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "adding task: %d-%p\n", scheduled->fdi->sock, scheduled->task);
+
   GNUNET_CONTAINER_DLL_insert (context->scheduled_head,
                                context->scheduled_tail,
                                scheduled);
@@ -75,6 +77,7 @@ select_del (void *cls,
 
   GNUNET_assert (NULL != cls);
 
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "select del %p - %d\n",task, task->fds->sock);
   context = cls;
   ret = GNUNET_SYSERR;
   pos = context->scheduled_head;
@@ -83,6 +86,7 @@ select_del (void *cls,
     struct Scheduled *next = pos->next;
     if (pos->task == task)
     {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "select del remove from scheduled %p\n",task);
       GNUNET_CONTAINER_DLL_remove (context->scheduled_head,
                                    context->scheduled_tail,
                                    pos);
@@ -104,6 +108,38 @@ select_set_wakeup (void *cls,
   context->timeout = dt;
 }
 
+static void select_post_do_work(struct GNUNET_SCHEDULER_Handle *sh, 
+    struct GNUNET_SCHEDULER_Task *active_task) {
+
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "post do work %p\n",active_task);
+  GNUNET_NETWORK_fdset_zero (sh->rs);
+  GNUNET_NETWORK_fdset_zero (sh->ws);
+  for (unsigned int i = 0; i != active_task->fds_len; ++i)
+  {
+    struct GNUNET_SCHEDULER_FdInfo *fdi = &active_task->fds[i];
+    if (0 != (GNUNET_SCHEDULER_ET_IN & fdi->et))
+    {
+      GNUNET_NETWORK_fdset_set_native (sh->rs,
+                                       fdi->sock);
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "post do work set read native %p\n",active_task);
+    }
+    if (0 != (GNUNET_SCHEDULER_ET_OUT & fdi->et))
+    {
+      GNUNET_NETWORK_fdset_set_native (sh->ws,
+                                       fdi->sock);
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "post do work set write native %p\n",active_task);
+    }
+  }
+}
+
+static void select_activate_loop (struct GNUNET_SCHEDULER_Handle *sh, 
+    const struct GNUNET_DISK_FileHandle *fh) {
+
+  sh->rs = GNUNET_NETWORK_fdset_create ();
+  sh->ws = GNUNET_NETWORK_fdset_create ();
+  GNUNET_NETWORK_fdset_handle_set (sh->rs, fh);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "activate loop, FDSET on handle: %d\n", fh->fd);
+}
 
 static int
 select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
@@ -136,10 +172,12 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
     {
       if (0 != (GNUNET_SCHEDULER_ET_IN & pos->et))
       {
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"handling scheduled, set read: %p\n",pos->task);
         GNUNET_NETWORK_fdset_set_native (rs, pos->fdi->sock);
       }
       if (0 != (GNUNET_SCHEDULER_ET_OUT & pos->et))
       {
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"handling scheduled, set write: %p\n",pos->task);
         GNUNET_NETWORK_fdset_set_native (ws, pos->fdi->sock);
       }
     }
@@ -149,10 +187,12 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
     if (NULL == scheduler_select)
     {
     */
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "before select...\n");
       select_result = GNUNET_NETWORK_socket_select (rs,
                                                     ws,
                                                     NULL,
                                                     time_remaining);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "after select...\n");
       /*
     }
     else
@@ -166,6 +206,7 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
     */
     if (select_result == GNUNET_SYSERR)
     {
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"======================SYSERR=======================\n");
       if (errno == EINTR)
         continue;
 
@@ -211,6 +252,7 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
     }
     if (select_result > 0)
     {
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"select_result > 0\n");
       for (struct Scheduled *pos = context->scheduled_head;
            NULL != pos;
            pos = pos->next)
@@ -224,6 +266,7 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
         {
           pos->fdi->et |= GNUNET_SCHEDULER_ET_IN;
           is_ready = GNUNET_YES;
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"handling select result scheduled, is_ready: %p\n",pos->task);
         }
         if ((0 != (GNUNET_SCHEDULER_ET_OUT & pos->et)) &&
             (GNUNET_YES ==
@@ -232,6 +275,7 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
         {
           pos->fdi->et |= GNUNET_SCHEDULER_ET_OUT;
           is_ready = GNUNET_YES;
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"handling select result scheduled, is_ready: %p\n",pos->task);
         }
         if (GNUNET_YES == is_ready)
         {
@@ -239,6 +283,7 @@ select_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
                                        pos->fdi);
         }
       }
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"iter for context->scheduled done\n");
     }
     if (GNUNET_YES == GNUNET_SCHEDULER_do_work (sh))
     {
@@ -266,6 +311,8 @@ GNUNET_SCHEDULER_driver_select ()
   select_driver->del = &select_del;
   select_driver->set_wakeup = &select_set_wakeup;
   select_driver->event_loop = &select_event_loop;
+  select_driver->activate_loop = &select_activate_loop;
+  select_driver->post_do_work = &select_post_do_work;
 
   return select_driver;
 }

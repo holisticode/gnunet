@@ -68,59 +68,6 @@
 #define DELAY_THRESHOLD GNUNET_TIME_UNIT_SECONDS
 
 
-/**
- * Argument to be passed from the driver to
- * #GNUNET_SCHEDULER_do_work().  Contains the
- * scheduler's internal state.
- */
-struct GNUNET_SCHEDULER_Handle
-{
-  /**
-   * Passed here to avoid constantly allocating/deallocating
-   * this element, but generally we want to get rid of this.
-   * @deprecated
-   */
-  struct GNUNET_NETWORK_FDSet *rs;
-
-  /**
-   * Passed here to avoid constantly allocating/deallocating
-   * this element, but generally we want to get rid of this.
-   * @deprecated
-   */
-  struct GNUNET_NETWORK_FDSet *ws;
-
-  /**
-   * context of the SIGINT handler
-   */
-  struct GNUNET_SIGNAL_Context *shc_int;
-
-  /**
-   * context of the SIGTERM handler
-   */
-  struct GNUNET_SIGNAL_Context *shc_term;
-
-#if (SIGTERM != GNUNET_TERM_SIG)
-  /**
-   * context of the TERM_SIG handler
-   */
-  struct GNUNET_SIGNAL_Context *shc_gterm;
-#endif
-
-  /**
-   * context of the SIGQUIT handler
-   */
-  struct GNUNET_SIGNAL_Context *shc_quit;
-
-  /**
-   * context of the SIGHUP handler
-   */
-  struct GNUNET_SIGNAL_Context *shc_hup;
-
-  /**
-   * context of hte SIGPIPE handler
-   */
-  struct GNUNET_SIGNAL_Context *shc_pipe;
-};
 
 /**
  * Head of list of tasks waiting for an event.
@@ -332,6 +279,7 @@ queue_ready_task (struct GNUNET_SCHEDULER_Task *task)
   GNUNET_CONTAINER_DLL_insert (ready_head[p],
                                ready_tail[p],
                                task);
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"queue ready task -> ready_head: %p\n",task);
   task->in_ready_list = GNUNET_YES;
   ready_count++;
 }
@@ -352,16 +300,22 @@ GNUNET_SCHEDULER_shutdown ()
        "GNUNET_SCHEDULER_shutdown\n");
   if (NULL != install_parent_control_task)
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "cancel parent control task\n");
     GNUNET_SCHEDULER_cancel (install_parent_control_task);
     install_parent_control_task = NULL;
   }
   if (NULL != shutdown_pipe_task)
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "cancel shutdown pipe task\n");
     GNUNET_SCHEDULER_cancel (shutdown_pipe_task);
     shutdown_pipe_task = NULL;
   }
   while (NULL != (pos = shutdown_head))
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "shutdown_head\n");
     GNUNET_CONTAINER_DLL_remove (shutdown_head,
                                  shutdown_tail,
                                  pos);
@@ -397,7 +351,7 @@ dump_backtrace (struct GNUNET_SCHEDULER_Task *t)
  *
  * @param t task to destroy
  */
-static void
+void
 destroy_task (struct GNUNET_SCHEDULER_Task *t)
 {
   unsigned int i;
@@ -540,15 +494,18 @@ GNUNET_SCHEDULER_run (GNUNET_SCHEDULER_TaskCallback task,
 
   //TODO: make this configurable
   driver = GNUNET_SCHEDULER_driver_libevent();
+  //driver = GNUNET_SCHEDULER_driver_select();
 
+  GNUNET_assert (NULL != driver);
   driver->cls = &context;
   sh = GNUNET_SCHEDULER_driver_init (driver);
   GNUNET_SCHEDULER_add_with_reason_and_priority (task,
                                                  task_cls,
                                                  GNUNET_SCHEDULER_REASON_STARTUP,
                                                  GNUNET_SCHEDULER_PRIORITY_DEFAULT);
-  driver->event_loop (sh,
-               &context);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "starting event loop...\n");
+  driver->event_loop (sh, &context);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "event loop terminated\n");
 
   GNUNET_SCHEDULER_driver_done (sh);
   GNUNET_free (driver);
@@ -571,6 +528,7 @@ GNUNET_SCHEDULER_get_task_context ()
 
 /**
  * Get information about the current load of this scheduler.  Use this
+ *
  * function to determine if an elective task should be added or simply
  * dropped (if the decision should be made based on the number of
  * tasks ready to run).
@@ -720,6 +678,7 @@ driver_add_multiple (struct GNUNET_SCHEDULER_Task *t)
   struct GNUNET_SCHEDULER_FdInfo *fdi;
   int success = GNUNET_YES;
 
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"driver-add-multiple: %p - %d\n",t,t->fds->sock);
   for (unsigned int i = 0; i != t->fds_len; ++i)
   {
     fdi = &t->fds[i];
@@ -978,8 +937,13 @@ GNUNET_SCHEDULER_add_at_with_priority (struct GNUNET_TIME_Absolute at,
   /* finally, update heuristic insertion point to last insertion... */
   pending_timeout_last = t;
 
+  /*
   LOG (GNUNET_ERROR_TYPE_DEBUG,
        "Adding task %p\n",
+       t);
+       */
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Add at with priority task, insert pending_timeout %p\n",
        t);
   init_backtrace (t);
   return t;
@@ -1272,6 +1236,7 @@ add_without_sets (struct GNUNET_TIME_Relative delay,
   GNUNET_CONTAINER_DLL_insert (pending_head,
                                pending_tail,
                                t);
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"add-without-sets-insert-pending-head: %p - %d\n",t,t->fds->sock);
   driver_add_multiple (t);
   max_priority_added = GNUNET_MAX (max_priority_added,
                                    t->priority);
@@ -1747,6 +1712,7 @@ GNUNET_SCHEDULER_task_ready (struct GNUNET_SCHEDULER_Task *task,
 {
   enum GNUNET_SCHEDULER_Reason reason;
 
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"task_ready %p - %d\n",task,task->fds->sock);
   reason = task->reason;
   if ((0 == (reason & GNUNET_SCHEDULER_REASON_READ_READY)) &&
       (0 != (GNUNET_SCHEDULER_ET_IN & fdi->et)))
@@ -1756,11 +1722,13 @@ GNUNET_SCHEDULER_task_ready (struct GNUNET_SCHEDULER_Task *task,
     reason |= GNUNET_SCHEDULER_REASON_WRITE_READY;
   reason |= GNUNET_SCHEDULER_REASON_PREREQ_DONE;
   task->reason = reason;
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"task_ready task reason: %d\n",task->reason);
   if (GNUNET_NO == task->in_ready_list)
   {
     GNUNET_CONTAINER_DLL_remove (pending_head,
                                  pending_tail,
                                  task);
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"task_ready remove from pending head: %p - %d\n",task, task->fds->sock);
     queue_ready_task (task);
   }
 }
@@ -1793,34 +1761,43 @@ GNUNET_SCHEDULER_do_work (struct GNUNET_SCHEDULER_Handle *sh)
   struct GNUNET_SCHEDULER_Task *pos;
   struct GNUNET_TIME_Absolute now;
 
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "GNUNET_SCHEDULER_do_work running...\n");
   /* check for tasks that reached the timeout! */
   now = GNUNET_TIME_absolute_get ();
   pos = pending_timeout_head;
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "iterating pending timeout\n");
   while (NULL != pos)
   {
     struct GNUNET_SCHEDULER_Task *next = pos->next;
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "checking pending timeout task %p\n",pos);
     if (now.abs_value_us >= pos->timeout.abs_value_us)
       pos->reason |= GNUNET_SCHEDULER_REASON_TIMEOUT;
-    if (0 == pos->reason)
+    if (0 == pos->reason) {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "break on task %p - %d\n",pos);
       break;
+    }
     GNUNET_CONTAINER_DLL_remove (pending_timeout_head,
                                  pending_timeout_tail,
                                  pos);
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "remove pending timeout task %p\n",pos);
     if (pending_timeout_last == pos)
       pending_timeout_last = NULL;
     queue_ready_task (pos);
     pos = next;
   }
   pos = pending_head;
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "iterating pending \n");
   while (NULL != pos)
   {
     struct GNUNET_SCHEDULER_Task *next = pos->next;
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "checking pending task %p\n",pos);
     if (now.abs_value_us >= pos->timeout.abs_value_us)
     {
       pos->reason |= GNUNET_SCHEDULER_REASON_TIMEOUT;
       GNUNET_CONTAINER_DLL_remove (pending_head,
                                    pending_tail,
                                    pos);
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "remove pending task %p \n",pos);
       queue_ready_task (pos);
     }
     pos = next;
@@ -1828,10 +1805,12 @@ GNUNET_SCHEDULER_do_work (struct GNUNET_SCHEDULER_Handle *sh)
 
   if (0 == ready_count)
   {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "READY COUINT IS ZEROOOO\n");
     struct GNUNET_TIME_Absolute timeout = get_timeout ();
 
     if (timeout.abs_value_us > now.abs_value_us)
     {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "timeout val: %d, now: %d\n", timeout.abs_value_us, now.abs_value_us);
       /**
        * The event loop called this function before the current timeout was
        * reached (and no FD tasks are ready). This is acceptable if
@@ -1859,6 +1838,7 @@ GNUNET_SCHEDULER_do_work (struct GNUNET_SCHEDULER_Handle *sh)
   }
   else
   {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "============== READY COUNT > 0 =========================\n");
     /* find out which task priority level we are going to
        process this time */
     max_priority_added = GNUNET_SCHEDULER_PRIORITY_KEEP;
@@ -1876,6 +1856,7 @@ GNUNET_SCHEDULER_do_work (struct GNUNET_SCHEDULER_Handle *sh)
     /* process all tasks at this priority level, then yield */
     while (NULL != (pos = ready_head[p]))
     {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "checking ready task at prio %p - PRIO %d\n",pos,  p);
       GNUNET_CONTAINER_DLL_remove (ready_head[p],
                                    ready_tail[p],
                                    pos);
@@ -1896,25 +1877,12 @@ GNUNET_SCHEDULER_do_work (struct GNUNET_SCHEDULER_Handle *sh)
       }
 #endif
       tc.reason = pos->reason;
-      GNUNET_NETWORK_fdset_zero (sh->rs);
-      GNUNET_NETWORK_fdset_zero (sh->ws);
       // FIXME: do we have to remove FdInfos from fds if they are not ready?
       tc.fds_len = pos->fds_len;
       tc.fds = pos->fds;
-      for (unsigned int i = 0; i != pos->fds_len; ++i)
-      {
-        struct GNUNET_SCHEDULER_FdInfo *fdi = &pos->fds[i];
-        if (0 != (GNUNET_SCHEDULER_ET_IN & fdi->et))
-        {
-          GNUNET_NETWORK_fdset_set_native (sh->rs,
-                                           fdi->sock);
-        }
-        if (0 != (GNUNET_SCHEDULER_ET_OUT & fdi->et))
-        {
-          GNUNET_NETWORK_fdset_set_native (sh->ws,
-                                           fdi->sock);
-        }
-      }
+
+      scheduler_driver->post_do_work(sh, pos); 
+
       tc.read_ready = sh->rs;
       tc.write_ready = sh->ws;
       LOG (GNUNET_ERROR_TYPE_DEBUG,
@@ -1944,14 +1912,18 @@ GNUNET_SCHEDULER_do_work (struct GNUNET_SCHEDULER_Handle *sh)
       dump_backtrace (pos);
       destroy_task (pos);
     }
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "done checking ready tasks\n");
   }
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "shutdown if no lifeness?\n");
   shutdown_if_no_lifeness ();
   if (0 == ready_count)
   {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "ready count is 0 -> GNUNET_NO\n");
     scheduler_driver->set_wakeup (scheduler_driver->cls,
                                   get_timeout ());
     return GNUNET_NO;
   }
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "ready count NOT 0 -> GNUNET_YES\n");
   scheduler_driver->set_wakeup (scheduler_driver->cls,
                                 GNUNET_TIME_absolute_get ());
   return GNUNET_YES;
@@ -2031,9 +2003,12 @@ GNUNET_SCHEDULER_driver_init (const struct GNUNET_SCHEDULER_Driver *driver)
   /* Setup initial tasks */
   current_priority = GNUNET_SCHEDULER_PRIORITY_DEFAULT;
   current_lifeness = GNUNET_NO;
+
+  LOG (GNUNET_ERROR_TYPE_DEBUG,"add now install parent control task: %p - \n", &install_parent_control_handler);
   install_parent_control_task =
     GNUNET_SCHEDULER_add_now (&install_parent_control_handler,
                               NULL);
+  LOG (GNUNET_ERROR_TYPE_DEBUG,"add read file-forever-pipe-2-shutdown-pipe\n", &install_parent_control_handler);
   shutdown_pipe_task =
     GNUNET_SCHEDULER_add_read_file (GNUNET_TIME_UNIT_FOREVER_REL,
                                     pr,
@@ -2043,9 +2018,7 @@ GNUNET_SCHEDULER_driver_init (const struct GNUNET_SCHEDULER_Driver *driver)
   scheduler_driver->set_wakeup (scheduler_driver->cls,
                                 get_timeout ());
   /* begin main event loop */
-  sh->rs = GNUNET_NETWORK_fdset_create ();
-  sh->ws = GNUNET_NETWORK_fdset_create ();
-  GNUNET_NETWORK_fdset_handle_set (sh->rs, pr);
+  scheduler_driver->activate_loop(sh, pr);
   return sh;
 }
 

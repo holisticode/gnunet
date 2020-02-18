@@ -228,7 +228,60 @@ GNUNET_SCHEDULER_task_ready (struct GNUNET_SCHEDULER_Task *task,
 /**
  * Handle to the scheduler's state to be used by the driver.
  */
-struct GNUNET_SCHEDULER_Handle;
+//struct GNUNET_SCHEDULER_Handle;
+/**
+ * Argument to be passed from the driver to
+ * #GNUNET_SCHEDULER_do_work().  Contains the
+ * scheduler's internal state.
+ */
+struct GNUNET_SCHEDULER_Handle
+{
+  /**
+   * Passed here to avoid constantly allocating/deallocating
+   * this element, but generally we want to get rid of this.
+   * @deprecated
+   */
+  struct GNUNET_NETWORK_FDSet *rs;
+
+  /**
+   * Passed here to avoid constantly allocating/deallocating
+   * this element, but generally we want to get rid of this.
+   * @deprecated
+   */
+  struct GNUNET_NETWORK_FDSet *ws;
+
+  /**
+   * context of the SIGINT handler
+   */
+  struct GNUNET_SIGNAL_Context *shc_int;
+
+  /**
+   * context of the SIGTERM handler
+   */
+  struct GNUNET_SIGNAL_Context *shc_term;
+
+#if (SIGTERM != GNUNET_TERM_SIG)
+  /**
+   * context of the TERM_SIG handler
+   */
+  struct GNUNET_SIGNAL_Context *shc_gterm;
+#endif
+
+  /**
+   * context of the SIGQUIT handler
+   */
+  struct GNUNET_SIGNAL_Context *shc_quit;
+
+  /**
+   * context of the SIGHUP handler
+   */
+  struct GNUNET_SIGNAL_Context *shc_hup;
+
+  /**
+   * context of hte SIGPIPE handler
+   */
+  struct GNUNET_SIGNAL_Context *shc_pipe;
+};
 
 
 /**
@@ -342,8 +395,24 @@ struct GNUNET_SCHEDULER_Driver
   int
   (*event_loop) (struct GNUNET_SCHEDULER_Handle *sh,
                struct DriverContext *context);
+
+  /*
+   * Run the actual event loop
+   *
+   * @param sh scheduler handle
+   * @param context driver context
+   */
+  void 
+  (*activate_loop) (struct GNUNET_SCHEDULER_Handle *sh, 
+                  const struct GNUNET_DISK_FileHandle *fh);
+
+  void 
+  (*post_do_work) (struct GNUNET_SCHEDULER_Handle *sh, 
+      struct GNUNET_SCHEDULER_Task *active_task);
 };
 
+void
+destroy_task (struct GNUNET_SCHEDULER_Task *t);
 
 /**
  * Signature of the main function of a task.
