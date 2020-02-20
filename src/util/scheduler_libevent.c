@@ -336,9 +336,10 @@ libevent_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
 
         /* add the event */
         int addResult = event_add(evt, timeout);
+        /* TODO: Do we fail here or just go on...? */
         if (0 != addResult) {
           LOG (GNUNET_ERROR_TYPE_ERROR,
-            "error adding event");
+            "error adding event! This will probably result in the scheduler failing!\n");
           return GNUNET_SYSERR; 
         }
 
@@ -354,12 +355,12 @@ libevent_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
     dispatch_result = event_base_loop(base, EVLOOP_ONCE);
     if (dispatch_result < 0) {
       LOG (GNUNET_ERROR_TYPE_ERROR,
-          "error dispatching events");
+          "error dispatching events! Event loop not running!\n");
       return GNUNET_SYSERR; 
     }
     if (dispatch_result == 1) {
       LOG (GNUNET_ERROR_TYPE_DEBUG,
-           "event dispatch no events pending or active");
+           "event dispatch no events pending or active\n");
     }
 
     /* after all events have fired, run the scheduler to determine
@@ -373,7 +374,7 @@ libevent_event_loop (struct GNUNET_SCHEDULER_Handle *sh,
   }
 
   /* we are done */
-  LOG(GNUNET_ERROR_TYPE_DEBUG,"libevent_event_loop done.");
+  LOG(GNUNET_ERROR_TYPE_DEBUG,"libevent_event_loop done.\n");
   return GNUNET_OK;
 }
 
