@@ -90,6 +90,8 @@ libgnunetutil_la_SOURCES = \
   regex.c \
   resolver_api.c resolver.h \
   scheduler.c \
+  scheduler_select.c \
+  scheduler_libevent.c \
   service.c \
   signal.c \
   strings.c \
@@ -137,6 +139,7 @@ libgnunetutil_la_LIBADD = \
 
 libgnunetutil_la_LDFLAGS = \
   $(GN_LIB_LDFLAGS) \
+  $(LIB_LIBEVENT) \
   -version-info 13:2:0
 
 if HAVE_TESTING

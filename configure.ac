@@ -1520,11 +1520,14 @@ AS_IF([test x$enable_framework_build = xyes],
 
 GN_LIB_LDFLAGS="-export-dynamic -no-undefined"
 GN_PLUGIN_LDFLAGS="-export-dynamic -avoid-version -module -no-undefined"
+LIB_LIBEVENT="-levent"
 
 AC_SUBST(GN_LIB_LDFLAGS)
 AC_SUBST(GN_PLUGIN_LDFLAGS)
 AC_SUBST(GN_INTLINCL)
 AC_SUBST(GN_LIBINTL)
+
+AC_SUBST(LIB_LIBEVENT)
 
 AC_SUBST(CPPFLAGS)
 AC_SUBST(LIBS)
