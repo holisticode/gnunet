@@ -471,6 +471,8 @@ static void
 connect_success_continuation (struct ClientState *cstate)
 {
   GNUNET_assert (NULL == cstate->recv_task);
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "before add_read_net\n");
   cstate->recv_task
     = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
                                      cstate->sock,

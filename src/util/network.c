@@ -373,6 +373,8 @@ initialize_network_handle (struct GNUNET_NETWORK_Handle *h,
   h->type = type;
   if (h->fd == INVALID_SOCKET)
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "=== initialize_net_handle INVALID SOCKET: \n");
     eno = errno;
     GNUNET_free (h);
     errno = eno;
@@ -381,6 +383,8 @@ initialize_network_handle (struct GNUNET_NETWORK_Handle *h,
 
   if (h->fd >= FD_SETSIZE)
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "=== initialize_net_handle FD_SETSIZE: \n");
     GNUNET_break (GNUNET_OK == GNUNET_NETWORK_socket_close (h));
     errno = EMFILE;
     return GNUNET_SYSERR;
@@ -392,6 +396,8 @@ initialize_network_handle (struct GNUNET_NETWORK_Handle *h,
 
   if (GNUNET_SYSERR == GNUNET_NETWORK_socket_set_blocking (h, GNUNET_NO))
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "=== initialize_net_handle SET BLOCKING: \n");
     eno = errno;
     GNUNET_break (0);
     GNUNET_break (GNUNET_OK == GNUNET_NETWORK_socket_close (h));
@@ -407,6 +413,8 @@ initialize_network_handle (struct GNUNET_NETWORK_Handle *h,
     errno = eno;
     return GNUNET_SYSERR;
   }
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "=== initialize_net_handle should be OK....: \n");
 #endif
   if ((type == SOCK_STREAM)
 #ifdef AF_UNIX
@@ -454,19 +462,26 @@ GNUNET_NETWORK_socket_accept (const struct GNUNET_NETWORK_Handle *desc,
   ret->fd = accept (desc->fd,
                     address,
                     address_len);
+
   if (-1 == ret->fd)
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "=== ret->fd -1, errno: %d \n", errno);
     eno = errno;
     GNUNET_free (ret);
     errno = eno;
     return NULL;
   }
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "=== ret->fd OK: \n");
   if (GNUNET_OK !=
       initialize_network_handle (ret,
                                  (NULL != address) ? address->sa_family :
                                  desc->af,
                                  SOCK_STREAM))
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "=== initialize_net_handle FAILED: \n");
     return NULL;
   }
   return ret;

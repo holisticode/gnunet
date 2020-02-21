@@ -395,20 +395,6 @@ struct GNUNET_SCHEDULER_Driver
   int
   (*event_loop) (struct GNUNET_SCHEDULER_Handle *sh,
                struct DriverContext *context);
-
-  /*
-   * Run the actual event loop
-   *
-   * @param sh scheduler handle
-   * @param context driver context
-   */
-  void 
-  (*activate_loop) (struct GNUNET_SCHEDULER_Handle *sh, 
-                  const struct GNUNET_DISK_FileHandle *fh);
-
-  void 
-  (*post_do_work) (struct GNUNET_SCHEDULER_Handle *sh, 
-      struct GNUNET_SCHEDULER_Task *active_task);
 };
 
 /**

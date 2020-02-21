@@ -1817,11 +1817,27 @@ GNUNET_SCHEDULER_do_work (struct GNUNET_SCHEDULER_Handle *sh)
       }
 #endif
       tc.reason = pos->reason;
+      GNUNET_NETWORK_fdset_zero (sh->rs);
+      GNUNET_NETWORK_fdset_zero (sh->ws);
       // FIXME: do we have to remove FdInfos from fds if they are not ready?
       tc.fds_len = pos->fds_len;
       tc.fds = pos->fds;
-
-      scheduler_driver->post_do_work(sh, pos); 
+      for (unsigned int i = 0; i != active_task->fds_len; ++i)
+      {
+        struct GNUNET_SCHEDULER_FdInfo *fdi = &active_task->fds[i];
+        if (0 != (GNUNET_SCHEDULER_ET_IN & fdi->et))
+        {
+          GNUNET_NETWORK_fdset_set_native (sh->rs,
+                                           fdi->sock);
+          LOG (GNUNET_ERROR_TYPE_DEBUG, "post do work set read native %p\n",active_task);
+        }
+        if (0 != (GNUNET_SCHEDULER_ET_OUT & fdi->et))
+        {
+          GNUNET_NETWORK_fdset_set_native (sh->ws,
+                                           fdi->sock);
+          LOG (GNUNET_ERROR_TYPE_DEBUG, "post do work set write native %p\n",active_task);
+        }
+      }
 
       tc.read_ready = sh->rs;
       tc.write_ready = sh->ws;
@@ -1951,8 +1967,11 @@ GNUNET_SCHEDULER_driver_init (const struct GNUNET_SCHEDULER_Driver *driver)
   current_lifeness = GNUNET_YES;
   scheduler_driver->set_wakeup (scheduler_driver->cls,
                                 get_timeout ());
+
   /* begin main event loop */
-  scheduler_driver->activate_loop(sh, pr);
+  sh->rs = GNUNET_NETWORK_fdset_create ();
+  sh->ws = GNUNET_NETWORK_fdset_create ();
+  GNUNET_NETWORK_fdset_handle_set (sh->rs, pr);
   return sh;
 }
 
